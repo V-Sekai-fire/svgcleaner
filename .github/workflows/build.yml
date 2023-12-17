@@ -10,32 +10,44 @@ on:
       - "*"
 
 jobs:
-  build_and_test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest, macos-latest]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: Build
-        run: cargo build --release
-
-  release:
-    if: github.event_name == 'create' || github.event_name == 'workflow_dispatch'
-    needs: build_and_test
-    runs-on: ubuntu-latest
-    steps:
+    build_and_test:
+        runs-on: ${{ matrix.os }}
+        strategy:
+          matrix:
+              os: [ubuntu-20.04, windows-latest, macos-latest]
+        steps:
         - name: Checkout code
           uses: actions/checkout@v2
-    
+
+        - name: Setup Rust
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: stable
+            override: true
+
+        - name: Build
+          run: cargo build --release
+
+        - name: Save build artifacts
+          uses: actions/upload-artifact@v2
+          with:
+            name: svgcleaner-${{ matrix.os }}
+            path: ./target/release/svgcleaner${{ runner.os == 'Windows' && '.exe' || '' }}
+
+    release:
+        if: github.event_name == 'create' || github.event_name == 'workflow_dispatch'
+        needs: build_and_test
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: Download build artifacts
+          uses: actions/download-artifact@v2
+          with:
+            name: svgcleaner-${{ matrix.os }}
+            path: ./target/release/
+
         - name: Create Release
           id: create_release
           uses: actions/create-release@v1
@@ -46,13 +58,13 @@ jobs:
             release_name: Release ${{ github.ref }}
             draft: false
             prerelease: false
-        
+
         - name: Upload Release Asset
           uses: actions/upload-release-asset@v1
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: ./target/release/svgcleaner-${{ matrix.os }}
+            asset_path: ./target/release/svgcleaner-${{ matrix.os }}${{ runner.os == 'Windows' && '.exe' || '' }}
             asset_name: svgcleaner-${{ matrix.os }}${{ runner.os == 'Windows' && '.exe' || '' }}
             asset_content_type: application/octet-stream
