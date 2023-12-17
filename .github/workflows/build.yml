@@ -2,14 +2,16 @@ name: Build and Release
 
 on:
   push:
-    tags:
+    branches:
       - "*"
   workflow_dispatch:
+  create:
+    tags:
+      - "*"
 
 jobs:
-  build_and_release:
+  build_and_test:
     runs_on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -22,6 +24,14 @@ jobs:
 
       - name: Build
         run: cargo build --release
+
+  release:
+    if: github.event_name == 'create' || github.event_name == 'workflow_dispatch'
+    needs: build_and_test
+    runs_on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
       - name: Create Release
         id: create_release
